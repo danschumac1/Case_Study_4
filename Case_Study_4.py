@@ -46,14 +46,39 @@ y = df['acquisition']
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
+#endregion
+#region # LOGISTIC REGRESSION
+# =============================================================================
+# LOGISTIC REGRESSION
+# =============================================================================
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+
+
+log_clf = LogisticRegression()
+log_clf.fit(X_train,y_train)
+log_preds = log_clf.predict(X_test)
+log_acc = accuracy_score(y_test, log_preds)
+log_acc
+
+#endregion
+#region # DECISION TREE
+# =============================================================================
+# DECISION TREE
+# =============================================================================
+from sklearn import tree
+dt_clf = tree.DecisionTreeClassifier()
+dt_clf.fit(X,y)
+dt_preds = dt_clf.predict(X_test)
+dt_acc = accuracy_score(y_test, dt_preds)
+dt_acc
+
 
 #endregion
 #region # RANDOM FOREST
 # =============================================================================
 # RANDOM FOREST 
 # =============================================================================
-
-# FIT RANDOM FOREST
 # get features needed
 max_features = X_train.shape[1]
 tree_count = 1000
@@ -70,17 +95,21 @@ rf_clf.fit(X_train, y_train)
 # make predictions
 rf_preds = rf_clf.predict(X_test)
 
-# get mse
-rf_mse = mean_squared_error(y_test, rf_preds)
-
+# get acc
+from sklearn.metrics import accuracy_score
+rf_acc = accuracy_score(y_test, rf_preds)
+rf_acc
 # NOW THAT WE KNOW THAT RANDOM FOREST IS BEST
+# @$@ this seems weird to me
 rf_clf.fit(X, y)
 rf_final_preds = rf_clf.predict(X)
 df['preds'] = rf_final_preds
 
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+#endregion
+#region # VARIABLE IMPORTANCE PLOT
+# =============================================================================
+# VARIABLE IMPORTANCE PLOT
+# =============================================================================
 
 # Create a DataFrame with feature names and their importance scores
 plot_df = pd.DataFrame({
@@ -96,21 +125,9 @@ plt.title('Feature Imortance')
 plt.show()
 
 #endregion
-#region # LOGISTIC REGRESSION
+#region # RANDON FOREST REGRESSION
 # =============================================================================
-# LOGISTIC REGRESSION
-# =============================================================================
-
-#endregion
-#region # DESCISION TREE
-# =============================================================================
-# DESCISION TREE
-# =============================================================================
-
-#endregion
-#region # REGRESSION
-# =============================================================================
-# REGRESSION
+# RANDON FOREST REGRESSION
 # =============================================================================
 df.columns
 X = df.drop(['duration','customer','acquisition'])
