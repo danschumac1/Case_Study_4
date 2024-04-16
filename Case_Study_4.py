@@ -9,8 +9,7 @@ Created on 04/09/2024
 # IMPORTS
 # =============================================================================
 import pandas as pd
-# Standard imports
-import pandas as pd
+# Standard import
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -54,7 +53,6 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
-
 log_clf = LogisticRegression()
 log_clf.fit(X_train,y_train)
 log_preds = log_clf.predict(X_test)
@@ -68,11 +66,10 @@ log_acc
 # =============================================================================
 from sklearn import tree
 dt_clf = tree.DecisionTreeClassifier()
-dt_clf.fit(X,y)
+dt_clf.fit(X_train,y_train)
 dt_preds = dt_clf.predict(X_test)
 dt_acc = accuracy_score(y_test, dt_preds)
 dt_acc
-
 
 #endregion
 #region # RANDOM FOREST
@@ -99,17 +96,47 @@ rf_preds = rf_clf.predict(X_test)
 from sklearn.metrics import accuracy_score
 rf_acc = accuracy_score(y_test, rf_preds)
 rf_acc
+
 # NOW THAT WE KNOW THAT RANDOM FOREST IS BEST
-# @$@ this seems weird to me
-rf_clf.fit(X, y)
-rf_final_preds = rf_clf.predict(X)
-df['preds'] = rf_final_preds
+# REFIT WITH GRIDSEARCH OPTIMIZATION
+param_grid = {
+    'n_estimators': [100, 500, 1000],  # Different numbers of trees
+    'max_features': ['auto', 'sqrt', 'log2', None],  # Number of features to consider at every split
+    'max_depth': [None, 10, 20, 30],  # Maximum number of levels in tree
+    'min_samples_split': [2, 5, 10],  # Minimum number of samples required to split a node
+    'min_samples_leaf': [1, 2, 4]  # Minimum number of samples required at each leaf node
+}
+
+grid_search = GridSearchCV(
+    estimator=RandomForestClassifier(random_state=27),
+    param_grid=param_grid,
+    cv=5,  # Number of folds in cross-validation
+    scoring='accuracy',  # Metric to evaluate the models
+    verbose=1,  # Show progress messages
+    n_jobs=-1  # Use all available cores
+)
+
+grid_search.fit(X_train, y_train)
+grid_search_preds = grid_search.predict(X_test)
+
+grid_search_acc = accuracy_score(y_test, grid_search_preds)
+grid_search_acc
+
+df['preds'] = grid_search_preds
 
 #endregion
 #region # VARIABLE IMPORTANCE PLOT
 # =============================================================================
 # VARIABLE IMPORTANCE PLOT
 # =============================================================================
+# Can't use non parametric model selection for parametric
+# maybe 1 var in np is important, but not in para
+# AIC is the way of capturing 
+# significance doesn't mean important variable
+# sig just mean is there a slope.
+# there are interaction effects that compounds 
+# AIC captures info bobtained by a variable.
+
 
 # Create a DataFrame with feature names and their importance scores
 plot_df = pd.DataFrame({
@@ -129,17 +156,62 @@ plt.show()
 # =============================================================================
 # RANDON FOREST REGRESSION
 # =============================================================================
-df.columns
-X = df.drop(['duration','customer','acquisition'])
-y = df['duration']
-rf_reg = RandomForestRegressor()
-rf_reg.fit(X,y)
-reg_preds = rf_reg.predict(X)
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.metrics import make_scorer, mean_squared_error
 
-df['predicted_duration'] = reg_preds
+# cross val to find the best Hyper Parameters. @$@ @$@
 
 # these are customers who we are predicting
 df_pred_customer =df[df['preds'] == 1]
+# train test test split / 80 20
+X = df_pred_customer.drop(['duration','customer','acquisition'], axis = 1)
+y = df_pred_customer['duration']
 
-# these are the predicted customers predicted duration
-df_pred_customer['predicted_duration']
+# CROSS VALIDATION
+param_grid = {
+    'n_estimators': [100, 200, 300],
+    'max_features': ['auto', 'sqrt', 'log2'],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4],
+}
+
+# FIT THE MODEL
+rf_reg = RandomForestRegressor()
+grid_search = GridSearchCV(estimator=rf_reg, param_grid=param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1)
+grid_search.fit(X, y)
+
+best_rf_reg = grid_search.best_estimator_
+
+# Assuming the best parameters have been found:
+best_params = grid_search.best_params_
+
+# Instantiate RandomForestRegressor with OOB score enabled using best parameters
+rf_reg_oob = RandomForestRegressor(
+    n_estimators=best_params['n_estimators'],
+    max_features=best_params['max_features'],
+    min_samples_split=best_params['min_samples_split'],
+    min_samples_leaf=best_params['min_samples_leaf'],
+    oob_score=True,  # Enable OOB scoring
+    random_state=42  # For reproducibility
+)
+
+# Assuming 'X' and 'y' are your features and target variable from the train set, and 'X_test', 'y_test' from the test set
+# Model fitting
+rf_reg_oob.fit(X, y)
+
+# Predictions
+y_pred = rf_reg_oob.predict(X)
+
+# Calculating metrics
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
+mse = mean_squared_error(y, y_pred)
+rmse = mean_squared_error(y, y_pred, squared=False)  # Pass squared=False to get the RMSE
+mae = mean_absolute_error(y, y_pred)
+r2 = r2_score(y, y_pred)
+
+print("MSE:", mse)
+print("RMSE:", rmse)
+print("MAE:", mae)
+print("R-squared:", r2)
