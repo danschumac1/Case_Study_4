@@ -18,14 +18,17 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor, plot_tree
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.svm import SVR
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import confusion_matrix, mean_squared_error, r2_score
+from sklearn.metrics import confusion_matrix, root_mean_squared_error, r2_score, accuracy_score, make_scorer, mean_absolute_error
+from sklearn import tree
+from sklearn.ensemble import RandomForestRegressor
 
 # Statistical imports
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
+from tqdm import tqdm
 
 # Other imports
 from ISLP import load_data
@@ -45,31 +48,33 @@ y = df['acquisition']
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
+# start a results dictionary
+results_dict = {}
+
 #endregion
 #region # LOGISTIC REGRESSION
 # =============================================================================
 # LOGISTIC REGRESSION
 # =============================================================================
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
-
 log_clf = LogisticRegression()
-log_clf.fit(X_train,y_train)
+log_clf.fit(X_train,y_train,)
 log_preds = log_clf.predict(X_test)
 log_acc = accuracy_score(y_test, log_preds)
-log_acc
+results_dict['log'] = log_acc
+print(log_acc)
 
 #endregion
 #region # DECISION TREE
 # =============================================================================
 # DECISION TREE
 # =============================================================================
-from sklearn import tree
 dt_clf = tree.DecisionTreeClassifier()
 dt_clf.fit(X_train,y_train)
 dt_preds = dt_clf.predict(X_test)
 dt_acc = accuracy_score(y_test, dt_preds)
-dt_acc
+results_dict['dt'] = dt_acc
+print(dt_acc)
+
 
 #endregion
 #region # RANDOM FOREST
@@ -93,9 +98,14 @@ rf_clf.fit(X_train, y_train)
 rf_preds = rf_clf.predict(X_test)
 
 # get acc
-from sklearn.metrics import accuracy_score
 rf_acc = accuracy_score(y_test, rf_preds)
-rf_acc
+results_dict['rf'] = rf_acc
+print(rf_acc)
+
+
+# =============================================================================
+# OPTIMIZING RANDOM FOREST
+# =============================================================================
 
 # NOW THAT WE KNOW THAT RANDOM FOREST IS BEST
 # REFIT WITH GRIDSEARCH OPTIMIZATION
@@ -117,12 +127,21 @@ grid_search = GridSearchCV(
 )
 
 grid_search.fit(X_train, y_train)
+
+# Assuming grid_search is a scikit-learn GridSearchCV object
 grid_search_preds = grid_search.predict(X_test)
 
-grid_search_acc = accuracy_score(y_test, grid_search_preds)
-grid_search_acc
+# get results
+optim_rf = accuracy_score(y_test, grid_search_preds)
+results_dict['optim_rf'] = optim_rf
+print(optim_rf)
 
-df['preds'] = grid_search_preds
+print(results_dict)
+# =============================================================================
+# FIT BEST MODEL TO ENTIRE DATASET
+# =============================================================================
+whole_preds = grid_search.predict(X)
+df['preds'] = whole_preds
 
 #endregion
 #region # VARIABLE IMPORTANCE PLOT
@@ -156,9 +175,7 @@ plt.show()
 # =============================================================================
 # RANDON FOREST REGRESSION
 # =============================================================================
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.metrics import make_scorer, mean_squared_error
+
 
 # cross val to find the best Hyper Parameters. @$@ @$@
 
@@ -181,6 +198,8 @@ rf_reg = RandomForestRegressor()
 grid_search = GridSearchCV(estimator=rf_reg, param_grid=param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1)
 grid_search.fit(X, y)
 
+
+    
 best_rf_reg = grid_search.best_estimator_
 
 # Assuming the best parameters have been found:
@@ -204,10 +223,9 @@ rf_reg_oob.fit(X, y)
 y_pred = rf_reg_oob.predict(X)
 
 # Calculating metrics
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-mse = mean_squared_error(y, y_pred)
-rmse = mean_squared_error(y, y_pred, squared=False)  # Pass squared=False to get the RMSE
+mse = root_mean_squared_error(y, y_pred)
+rmse = root_mean_squared_error(y, y_pred)  # Pass squared=False to get the RMSE
 mae = mean_absolute_error(y, y_pred)
 r2 = r2_score(y, y_pred)
 
